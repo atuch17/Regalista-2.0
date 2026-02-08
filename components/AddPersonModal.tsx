@@ -102,7 +102,7 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ isOpen, onClose, onAddP
                 type="text" 
                 value={name} 
                 onChange={(e) => setName(e.target.value)} 
-                className={`mt-1 block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl shadow-sm sm:text-sm transition-all focus:outline-none focus:ring-2 text-slate-900 ${RING_COLORS[selectedColor]}`} 
+                className={`mt-1 block w-full px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm sm:text-sm transition-all focus:outline-none focus:ring-2 text-slate-900 placeholder:text-slate-400 ${RING_COLORS[selectedColor]}`} 
                 placeholder="Ej: Mamá o Juan García" 
                 autoFocus 
               />
@@ -114,14 +114,14 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ isOpen, onClose, onAddP
                  <select 
                     value={selectedDay} 
                     onChange={(e) => setSelectedDay(parseInt(e.target.value))} 
-                    className={`w-1/3 px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl sm:text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 ${RING_COLORS[selectedColor]}`}
+                    className={`w-1/3 px-3 py-3 bg-white border border-slate-200 rounded-xl sm:text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 ${RING_COLORS[selectedColor]}`}
                  >
                     {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
                  </select>
                  <select 
                     value={selectedMonth} 
                     onChange={(e) => setSelectedMonth(e.target.value)} 
-                    className={`w-2/3 px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl sm:text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 ${RING_COLORS[selectedColor]}`}
+                    className={`w-2/3 px-3 py-3 bg-white border border-slate-200 rounded-xl sm:text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 ${RING_COLORS[selectedColor]}`}
                  >
                     {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
                  </select>

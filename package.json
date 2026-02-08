@@ -1,5 +1,5 @@
 {
-  "name": "regalista-2.0",
+  "name": "regalista",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,7 +11,6 @@
   "dependencies": {
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "@google/genai": "^1.40.0",
     "canvas-confetti": "^1.9.3"
   },
   "devDependencies": {

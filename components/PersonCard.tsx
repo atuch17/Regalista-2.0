@@ -2,9 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Person, PersonColor, GiftPriority, Gift } from '../types';
 import GiftItem from './GiftItem';
-import { PlusIcon, CakeIcon, TrashIcon, PencilIcon, ShareIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, EuroIcon, LinkIcon, BellIcon, StarIcon, FireIcon, SparklesIcon, CoffeeIcon, SparkleAiIcon, XIcon } from './icons';
+import { PlusIcon, CakeIcon, TrashIcon, PencilIcon, ShareIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, EuroIcon, LinkIcon, BellIcon, StarIcon, FireIcon, SparklesIcon, CoffeeIcon, XIcon } from './icons';
 import { getDaysUntilBirthday, parseBirthdayString, MONTHS } from '../utils/dateUtils';
-import { suggestGifts } from '../services/geminiService';
 
 interface PersonCardProps {
   person: Person;
@@ -37,7 +36,6 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
   const [newGiftPrice, setNewGiftPrice] = useState('');
   const [newGiftLink, setNewGiftLink] = useState('');
   const [newGiftPriority, setNewGiftPriority] = useState<GiftPriority>('medium');
-  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const [isEditingPerson, setIsEditingPerson] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -54,8 +52,6 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
   const daysUntilBirthday = useMemo(() => getDaysUntilBirthday(person.birthday), [person.birthday]);
   const styles = COLOR_STYLES[person.color || 'slate'];
 
-  const totalBudget = person.gifts.reduce((sum, gift) => sum + (gift.price || 0), 0);
-  
   const pendingGifts = useMemo(() => {
       const pending = person.gifts.filter(g => g.status === 'pendiente');
       const priorityOrder: { [key in GiftPriority]: number } = { high: 3, medium: 2, low: 1 };
@@ -105,14 +101,6 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
     onUpdate({ ...person, gifts: person.gifts.filter(g => g.id !== giftId) });
   };
 
-  const handleSuggest = async () => {
-    setIsSuggesting(true);
-    const suggestions = await suggestGifts(person.name, person.birthday);
-    onUpdate({ ...person, gifts: [...person.gifts, ...suggestions] });
-    setIsSuggesting(false);
-    setIsExpanded(true);
-  };
-
   const handleSavePerson = () => {
     if (editedName.trim()) {
         const formattedBirthday = `${editedDay} de ${editedMonth}`;
@@ -123,7 +111,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
 
   const handleShare = async () => {
     let text = `🎂 Regalos para ${person.name} (${person.birthday})\n`;
-    text += `💰 Presupuesto estimado: ${totalBudget}€\n\n`;
+    text += `💰 Presupuesto estimado: ${person.gifts.reduce((sum, g) => sum + (g.price || 0), 0)}€\n\n`;
     text += pendingGifts.map(g => `⬜ ${g.name}${g.price ? ` (${g.price}€)` : ''}`).join('\n') + '\n';
     if (purchasedGifts.length > 0) text += '\n✅ Comprados:\n' + purchasedGifts.map(g => `✅ ${g.name}`).join('\n');
     
@@ -307,13 +295,6 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
                <div className="flex gap-2">
                  <button onClick={() => setIsAddingGift(true)} className={`flex-1 py-2 bg-white border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:${styles.text} hover:border-slate-400 transition-all flex items-center justify-center gap-2 font-medium text-sm`}>
                    <PlusIcon className="h-5 w-5" /> Nueva Idea
-                 </button>
-                 <button 
-                   disabled={true} 
-                   className={`px-4 py-2 bg-slate-200 border border-slate-300 text-slate-400 rounded-xl text-sm font-semibold flex items-center gap-2 cursor-not-allowed opacity-60`}
-                   title="Función IA deshabilitada"
-                 >
-                    <SparkleAiIcon className={`h-4 w-4`} /> IA
                  </button>
                </div>
             ) : (

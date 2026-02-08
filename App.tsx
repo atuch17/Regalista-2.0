@@ -4,8 +4,9 @@ import { Person } from './types';
 import Header from './components/Header';
 import AddPersonModal from './components/AddPersonModal';
 import BirthdayCalendarModal from './components/BirthdayCalendarModal';
+import SettingsModal from './components/SettingsModal';
 import { PersonCard } from './components/PersonCard';
-import { StarIcon } from './components/icons';
+import { StarIcon, AlertTriangleIcon, XIcon } from './components/icons';
 import { getDaysUntilBirthday } from './utils/dateUtils';
 import * as googleService from './services/googleSheetsService';
 
@@ -17,58 +18,95 @@ const App: React.FC = () => {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
-  // Google Auth State
-  const [isGoogleLinked, setIsGoogleLinked] = useState(!!localStorage.getItem('google_sheet_id'));
+  const [isGoogleLinked, setIsGoogleLinked] = useState(localStorage.getItem('is_demo_linked') === 'true' || !!localStorage.getItem('google_sheet_id'));
   const [isSyncing, setIsSyncing] = useState(false);
   const [spreadsheetId, setSpreadsheetId] = useState(localStorage.getItem('google_sheet_id'));
+  const [isDemoMode, setIsDemoMode] = useState(localStorage.getItem('is_demo_linked') === 'true');
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     googleService.initGoogleAuth(() => {
-        console.log('Google APIs loaded');
+        console.log('Google APIs ready.');
     });
   }, []);
 
   useEffect(() => {
     localStorage.setItem('giftify_people', JSON.stringify(people));
     
-    // Sync to Google Sheets if linked
-    if (isGoogleLinked && spreadsheetId) {
-        syncToCloud(people);
+    if (isGoogleLinked && !isSyncing) {
+        if (isDemoMode) {
+            simulateSync();
+        } else if (spreadsheetId) {
+            syncToCloud(people);
+        }
     }
-  }, [people, isGoogleLinked, spreadsheetId]);
+  }, [people, isGoogleLinked, spreadsheetId, isDemoMode]);
+
+  const simulateSync = () => {
+    setIsSyncing(true);
+    setTimeout(() => setIsSyncing(false), 800);
+  };
 
   const syncToCloud = async (data: Person[]) => {
+    if (isSyncing) return;
     setIsSyncing(true);
     try {
         await googleService.syncToSheets(spreadsheetId!, data);
     } catch (e) {
-        console.error('Sync failed', e);
+        console.error('Cloud Sync failed', e);
     } finally {
         setIsSyncing(false);
     }
   };
 
   const handleGoogleLink = async () => {
+    setAuthError(null);
+    if (!googleService.isGoogleApiReady()) {
+        alert("Los servicios de Google se están cargando...");
+        return;
+    }
+
     setIsSyncing(true);
     try {
         await googleService.signIn();
+        
         let sid = spreadsheetId;
         if (!sid) {
             sid = await googleService.findOrCreateDatabase();
             setSpreadsheetId(sid);
             localStorage.setItem('google_sheet_id', sid);
         }
+
         const cloudData = await googleService.loadFromSheets(sid);
-        if (cloudData.length > 0) {
-            if (window.confirm('Se han encontrado datos en tu cuenta de Google. ¿Quieres sobrescribir tu lista local con los datos de la nube?')) {
+        if (cloudData && cloudData.length > 0) {
+            if (window.confirm('¿Restaurar datos de Google Drive?')) {
                 setPeople(cloudData);
             }
         }
+        
         setIsGoogleLinked(true);
-    } catch (e) {
-        console.error('Google link failed', e);
-        alert('No se pudo vincular con Google. Revisa tu conexión o permisos.');
+        setIsDemoMode(false);
+        localStorage.removeItem('is_demo_linked');
+    } catch (e: any) {
+        console.log('Sync/Link outcome:', e.message || e);
+        const errorMsg = e.message || String(e);
+        
+        // Si el usuario cerró el popup, simplemente paramos el estado de carga
+        if (errorMsg === 'popup_closed_by_user') {
+            setIsSyncing(false);
+            return;
+        }
+
+        if (errorMsg === 'timeout_reached') {
+            setAuthError("El proceso ha tardado demasiado o el popup se bloqueó.");
+        } else if (errorMsg.includes('idpiframe_initialization_failed') || errorMsg.includes('popup_closed_by_user')) {
+            setAuthError("No se pudo completar el login. Revisa la configuración de Orígenes en Google Console.");
+            setIsSettingsOpen(true);
+        } else {
+            alert(`Error al conectar con Google: ${errorMsg}`);
+        }
     } finally {
         setIsSyncing(false);
     }
@@ -111,6 +149,45 @@ const App: React.FC = () => {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        {authError && (
+            <div className="mb-6 bg-red-50 border border-red-200 p-4 rounded-2xl flex items-center justify-between animate-fade-in shadow-sm">
+                <div className="flex items-center gap-3 text-red-800 text-sm">
+                    <AlertTriangleIcon className="w-5 h-5 text-red-500" />
+                    <div>
+                        <p className="font-bold">Estado de Vinculación</p>
+                        <p className="opacity-80">{authError}</p>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => setAuthError(null)} className="text-slate-400 hover:text-slate-600 px-2 py-1">
+                        <XIcon className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setIsSettingsOpen(true)} className="bg-white px-3 py-1.5 rounded-lg border border-red-200 text-xs font-bold text-red-600 hover:bg-red-100 transition-colors">
+                        Diagnóstico
+                    </button>
+                </div>
+            </div>
+        )}
+
+        {isDemoMode && isGoogleLinked && (
+            <div className="mb-6 bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center justify-between animate-fade-in">
+                <div className="flex items-center gap-2 text-amber-800 text-sm font-medium">
+                    <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping"></span>
+                    Estás en Modo Demo (Simulación de Nube activa)
+                </div>
+                <button 
+                  onClick={() => {
+                    setIsGoogleLinked(false);
+                    setIsDemoMode(false);
+                    localStorage.removeItem('is_demo_linked');
+                  }}
+                  className="text-amber-600 text-xs font-bold hover:underline"
+                >
+                    Desactivar
+                </button>
+            </div>
+        )}
+
         {people.length === 0 && !isSyncing ? (
           <div className="text-center py-20 bg-white border-2 border-dashed border-slate-200 rounded-3xl mt-10">
             <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -135,17 +212,21 @@ const App: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-12">
-            {/* Sync Indicator for Desktop */}
             {isSyncing && (
                 <div className="fixed bottom-8 right-8 z-50 animate-bounce">
-                    <div className="bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-full shadow-2xl flex items-center gap-2">
+                    <div className="bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-full shadow-2xl flex items-center gap-3">
                         <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
-                        Sincronizando con Google...
+                        <span>{isDemoMode ? 'Simulando Sync...' : 'Conectando con Google...'}</span>
+                        <button 
+                            onClick={() => setIsSyncing(false)} 
+                            className="ml-2 pl-2 border-l border-slate-600 text-slate-400 hover:text-white transition-colors"
+                        >
+                            Cancelar
+                        </button>
                     </div>
                 </div>
             )}
 
-            {/* Favorites Section */}
             {favorites.length > 0 && (
               <section className="animate-fade-in">
                 <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
@@ -165,7 +246,6 @@ const App: React.FC = () => {
               </section>
             )}
 
-            {/* General Section */}
             {others.length > 0 && (
               <section className="animate-fade-in">
                 <h2 className="text-lg font-bold text-slate-500 mb-6 flex items-center gap-2">
@@ -199,9 +279,17 @@ const App: React.FC = () => {
         people={people} 
       />
 
+      <SettingsModal 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        clientId={googleService.CLIENT_ID}
+        onSave={(id) => {
+            console.log("Nuevo ID guardado:", id);
+        }}
+      />
+
       <footer className="max-w-7xl mx-auto px-4 text-center mt-20 text-slate-400 text-sm">
-        <p>Tus datos se guardan de forma segura en tu propio Google Drive.</p>
-        <p className="mt-1">Archivo: RegalistaDB_AppData.xlsx</p>
+        <p>Tus datos se guardan de forma segura en {isDemoMode ? 'tu Navegador (Demo)' : 'tu propio Google Drive'}.</p>
       </footer>
     </div>
   );

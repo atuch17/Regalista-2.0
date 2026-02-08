@@ -1,4 +1,3 @@
-
 export type PersonColor = 'slate' | 'rose' | 'orange' | 'emerald' | 'blue' | 'violet';
 export type GiftPriority = 'high' | 'medium' | 'low';
 export type GiftStatus = 'pendiente' | 'comprado';
@@ -21,8 +20,4 @@ export interface Person {
   isFavorite?: boolean;
   reminderSet?: boolean;
   gifts: Gift[];
-}
-
-export interface SuggestionResponse {
-  suggestions: string[];
 }

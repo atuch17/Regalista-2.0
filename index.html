@@ -4,20 +4,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Regalista 2.0 - Ideas de Regalos</title>
+  <title>Regalista - Ideas de Regalos</title>
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2211%22 fill=%22%234f46e5%22/><g fill=%22none%22 stroke=%22white%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 transform=%22matrix(0.55,0,0,0.55,5.4,5.4)%22><polyline points=%2220 12 20 22 4 22 4 12%22></polyline><rect x=%222%22 y=%227%22 width=%2220%22 height=%225%22></rect><line x1=%2212%22 y1=%2222%22 x2=%2212%22 y2=%227%22></line><path d=%22M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z%22></path><path d=%22M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z%22></path></g></svg>">
+  
+  <!-- Tailwind JIT CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-out forwards',
+          },
+          keyframes: {
+            fadeIn: {
+              'from': { opacity: '0', transform: 'translateY(10px)' },
+              'to': { opacity: '1', transform: 'translateY(0)' },
+            }
+          }
+        },
+      },
+    }
+  </script>
+
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: 'Inter', sans-serif;
       background-color: #f8fafc;
-    }
-    .animate-fade-in {
-      animation: fadeIn 0.3s ease-out forwards;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      -webkit-tap-highlight-color: transparent;
     }
   </style>
 <script type="importmap">
@@ -26,7 +44,6 @@
     "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
     "canvas-confetti": "https://esm.sh/canvas-confetti@^1.9.3"
   }
 }

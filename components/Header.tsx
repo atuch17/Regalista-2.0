@@ -26,7 +26,7 @@ const Header: React.FC<HeaderProps> = ({
                 <GiftIcon className="h-6 w-6 text-white" />
             </div>
             <div className="flex flex-col">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Regalista 2.0<span className="text-indigo-600">.</span></h1>
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Regalista</h1>
                 {isGoogleLinked && (
                     <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 animate-fade-in">
                         <CheckIcon className="w-3 h-3" /> Conectado a Drive
