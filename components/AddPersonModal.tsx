@@ -50,6 +50,7 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ isOpen, onClose, onAddP
   const [name, setName] = useState('');
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [selectedMonth, setSelectedMonth] = useState<string>('Enero');
+  const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<PersonColor>('slate');
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -67,15 +68,18 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ isOpen, onClose, onAddP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return setFormError("Por favor, escribe un nombre.");
+    
     const newPerson: Person = {
       id: crypto.randomUUID(),
       name: name.trim(),
       birthday: `${selectedDay} de ${selectedMonth}`,
+      birthYear: selectedYear ? parseInt(selectedYear) : undefined,
       color: selectedColor,
       gifts: [],
     };
     onAddPerson(newPerson);
     setName('');
+    setSelectedYear('');
     onClose();
   };
 
@@ -108,23 +112,35 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ isOpen, onClose, onAddP
               />
             </div>
             
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fecha de Cumpleaños</label>
-              <div className="flex gap-3 mt-1">
-                 <select 
-                    value={selectedDay} 
-                    onChange={(e) => setSelectedDay(parseInt(e.target.value))} 
-                    className={`w-1/3 px-3 py-3 bg-white border border-slate-200 rounded-xl sm:text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 ${RING_COLORS[selectedColor]}`}
-                 >
-                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
-                 </select>
-                 <select 
-                    value={selectedMonth} 
-                    onChange={(e) => setSelectedMonth(e.target.value)} 
-                    className={`w-2/3 px-3 py-3 bg-white border border-slate-200 rounded-xl sm:text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 ${RING_COLORS[selectedColor]}`}
-                 >
-                    {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
-                 </select>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Día y Mes</label>
+                <div className="flex gap-2">
+                  <select 
+                      value={selectedDay} 
+                      onChange={(e) => setSelectedDay(parseInt(e.target.value))} 
+                      className={`w-1/3 px-3 py-3 bg-white border border-slate-200 rounded-xl sm:text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 ${RING_COLORS[selectedColor]}`}
+                  >
+                      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <select 
+                      value={selectedMonth} 
+                      onChange={(e) => setSelectedMonth(e.target.value)} 
+                      className={`w-2/3 px-3 py-3 bg-white border border-slate-200 rounded-xl sm:text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 ${RING_COLORS[selectedColor]}`}
+                  >
+                      {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Año (opcional)</label>
+                <input 
+                  type="number" 
+                  value={selectedYear} 
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  placeholder="1995"
+                  className={`w-full px-3 py-3 bg-white border border-slate-200 rounded-xl sm:text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 ${RING_COLORS[selectedColor]}`}
+                />
               </div>
             </div>
 

@@ -1,96 +1,105 @@
 
-import React, { useState } from 'react';
-import { XIcon, CheckIcon, LinkIcon, GoogleIcon, AlertTriangleIcon } from './icons';
+import React from 'react';
+import { XIcon, LinkIcon, GoogleIcon, AlertTriangleIcon, SettingsIcon, CheckIcon, TrashIcon } from './icons';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   clientId: string;
-  onSave: (id: string) => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, clientId, onSave }) => {
-  const [value, setValue] = useState(clientId);
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, clientId }) => {
   const currentOrigin = window.location.origin;
-  const currentHost = window.location.hostname;
-  const currentPort = window.location.port;
+  const localOrigin = "http://localhost:3000";
 
   if (!isOpen) return null;
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert(`Copiado: ${text}`);
+    alert("Copiado al portapapeles: " + text);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex justify-center items-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-5 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">Configuración y Diagnóstico</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><XIcon className="h-6 w-6" /></button>
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex justify-center items-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden animate-fade-in border border-slate-100" onClick={(e) => e.stopPropagation()}>
+        
+        <div className="bg-indigo-600 p-8 text-white relative">
+            <button onClick={onClose} className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors">
+                <XIcon className="h-6 w-6" />
+            </button>
+            <div className="flex items-center gap-4 mb-2">
+                <div className="bg-white p-3 rounded-2xl text-indigo-600">
+                    <GoogleIcon className="w-8 h-8" />
+                </div>
+                <h2 className="text-3xl font-black tracking-tight">Configuración Google</h2>
+            </div>
+            <p className="text-indigo-100 font-medium">Copia estas URLs en tu Consola de Google Cloud</p>
         </div>
         
-        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-          <section className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-              <GoogleIcon className="w-4 h-4" /> Google Client ID
-            </h3>
-            <input 
-              type="text" 
-              readOnly
-              value={value} 
-              className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-mono text-slate-600 focus:outline-none cursor-not-allowed"
-            />
-          </section>
-
-          <section className="bg-amber-50 p-5 rounded-2xl border border-amber-200 space-y-4">
-            <div className="flex items-center gap-2 text-amber-700 font-bold text-sm">
-                <AlertTriangleIcon className="w-5 h-5" />
-                <span>Datos para Google Cloud Console</span>
-            </div>
+        <div className="p-8 space-y-8 max-h-[60vh] overflow-y-auto">
+          
+          <div className="space-y-6">
             
-            <div className="space-y-3">
-                <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-amber-600 uppercase">Origen Autorizado (JavaScript Origin)</label>
-                    <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-amber-200">
-                        <code className="text-xs font-bold text-slate-800 flex-grow">{currentOrigin}</code>
-                        <button onClick={() => copyToClipboard(currentOrigin)} className="text-[10px] bg-amber-600 text-white px-2 py-1 rounded font-bold hover:bg-amber-700">Copiar</button>
-                    </div>
-                </div>
+            {/* Paso 1: Orígenes Autorizados */}
+            <div className="relative pl-10 border-l-2 border-indigo-100 py-2">
+                <div className="absolute -left-[11px] top-2 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] text-white font-bold">1</div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight mb-1">Orígenes de JavaScript autorizados</h3>
+                <p className="text-xs text-slate-500 mb-4 leading-relaxed text-balance">
+                  Debes añadir <b>AMBAS</b> URLs en la primera sección de tu ID de cliente:
+                </p>
+                
+                <div className="space-y-3">
+                  {/* URL Producción */}
+                  <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                      <div className="flex-grow min-w-0">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 block mb-0.5">URL Online</span>
+                        <code className="text-xs font-bold text-indigo-600 truncate block">{currentOrigin}</code>
+                      </div>
+                      <button onClick={() => copyToClipboard(currentOrigin)} className="bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold hover:bg-indigo-50 transition-colors shadow-sm">
+                          <LinkIcon className="w-4 h-4" />
+                      </button>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-amber-600 uppercase">Hostname</label>
-                        <div className="bg-white p-2 rounded-lg border border-amber-200 text-xs font-mono text-slate-600">{currentHost}</div>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-amber-600 uppercase">Puerto</label>
-                        <div className="bg-white p-2 rounded-lg border border-amber-200 text-xs font-mono text-slate-600">{currentPort || 'Estándar (80/443)'}</div>
-                    </div>
+                  {/* URL Localhost */}
+                  <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                      <div className="flex-grow min-w-0">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 block mb-0.5">URL Local (PC)</span>
+                        <code className="text-xs font-bold text-slate-600 truncate block">{localOrigin}</code>
+                      </div>
+                      <button onClick={() => copyToClipboard(localOrigin)} className="bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold hover:bg-indigo-50 transition-colors shadow-sm">
+                          <LinkIcon className="w-4 h-4" />
+                      </button>
+                  </div>
                 </div>
+                <p className="text-[10px] text-slate-400 mt-2 italic">* Repite lo mismo en la sección de "URIs de redireccionamiento autorizados".</p>
             </div>
 
-            <div className="text-xs text-amber-800 leading-relaxed bg-white/50 p-3 rounded-xl border border-amber-100">
-                <p className="font-bold mb-1">¿Por qué falla?</p>
-                <p>Si usas <code>127.0.0.1</code> en lugar de <code>localhost</code>, Google los trata como distintos. Debes autorizar el que aparezca arriba <b>exactamente</b> (sin barra final).</p>
+            {/* Paso 2: Usuarios */}
+            <div className="relative pl-10 border-l-2 border-indigo-100 py-2">
+                <div className="absolute -left-[11px] top-2 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] text-white font-bold">2</div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight mb-2">Usuario de prueba</h3>
+                <p className="text-xs text-slate-500 leading-relaxed bg-amber-50 p-4 rounded-2xl border border-amber-100 border-dashed">
+                    Asegúrate de que <b>aturielcharro@gmail.com</b> esté en la lista de usuarios permitidos en la pestaña de "Pantalla de consentimiento".
+                </p>
             </div>
-          </section>
 
-          <section className="space-y-2">
-            <h4 className="text-xs font-bold text-slate-700 uppercase">Pasos para corregir el Error 400:</h4>
-            <ol className="text-xs text-slate-500 space-y-2 list-decimal list-inside">
-              <li>Ve a <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="text-indigo-600 font-bold underline">Google Cloud Credentials</a>.</li>
-              <li>Edita tu <b>ID de cliente de OAuth 2.0</b>.</li>
-              <li>En <b>"Orígenes de JavaScript autorizados"</b>, añade la URL que copiaste arriba.</li>
-              <li><b>IMPORTANTE:</b> Dale al botón "Guardar" al final de la página y espera 5 minutos.</li>
-            </ol>
-          </section>
+          </div>
+
+          <div className="pt-4 flex flex-col items-center gap-4">
+              <button 
+                onClick={() => { localStorage.clear(); window.location.reload(); }}
+                className="text-[10px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-widest flex items-center gap-2 transition-colors border border-slate-200 px-4 py-2 rounded-full"
+              >
+                <TrashIcon className="w-3 h-3" /> Limpiar memoria de la app
+              </button>
+          </div>
+
         </div>
 
-        <div className="bg-slate-50 px-6 py-4 flex justify-end gap-3 border-t border-slate-100">
-          <button onClick={onClose} className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
-            Cerrar Diagnóstico
-          </button>
+        <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-center">
+            <button onClick={onClose} className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold shadow-xl hover:bg-slate-800 transition-all active:scale-95">
+                Entendido, cerrar
+            </button>
         </div>
       </div>
     </div>

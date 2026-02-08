@@ -35,17 +35,25 @@ export const getDaysUntilBirthday = (birthdayString: string): number | null => {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
-export const getAge = (birthdayString: string): number => {
+export const getAgeAtNextBirthday = (birthdayString: string, birthYear?: number): number | null => {
+  if (!birthYear) return null;
+  
   const parts = birthdayString.toLowerCase().replace(/,/g, '').split(' de ');
-  if (parts.length !== 2) return 0;
+  if (parts.length !== 2) return null;
   
   const month = getMonthIndex(parts[1].trim());
   const day = parseInt(parts[0]);
   
   const today = new Date();
-  // We don't have birth year, so we assume age is based on a default or just use it for "next age"
-  // For the AI prompt, we'll just say "X years" in a generic way or skip year logic.
-  return 25; // Placeholder since prototype doesn't store year
+  const currentYear = today.getFullYear();
+  let nextBirthdayYear = currentYear;
+  
+  const birthdayThisYear = new Date(currentYear, month, day);
+  if (birthdayThisYear < today) {
+    nextBirthdayYear = currentYear + 1;
+  }
+  
+  return nextBirthdayYear - birthYear;
 };
 
 export const parseBirthdayString = (dateStr: string) => {

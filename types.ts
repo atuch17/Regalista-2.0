@@ -1,3 +1,4 @@
+
 export type PersonColor = 'slate' | 'rose' | 'orange' | 'emerald' | 'blue' | 'violet';
 export type GiftPriority = 'high' | 'medium' | 'low';
 export type GiftStatus = 'pendiente' | 'comprado';
@@ -15,7 +16,8 @@ export interface Gift {
 export interface Person {
   id: string;
   name: string;
-  birthday: string; // Format: "15 de Mayo"
+  birthday: string; // Formato: "15 de Mayo"
+  birthYear?: number; // Opcional
   color: PersonColor;
   isFavorite?: boolean;
   reminderSet?: boolean;

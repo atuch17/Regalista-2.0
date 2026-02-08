@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Person, PersonColor, GiftPriority, Gift } from '../types';
 import GiftItem from './GiftItem';
 import { PlusIcon, CakeIcon, TrashIcon, PencilIcon, ShareIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, EuroIcon, LinkIcon, BellIcon, StarIcon, FireIcon, SparklesIcon, CoffeeIcon, XIcon } from './icons';
-import { getDaysUntilBirthday, parseBirthdayString, MONTHS } from '../utils/dateUtils';
+import { getDaysUntilBirthday, parseBirthdayString, MONTHS, getAgeAtNextBirthday } from '../utils/dateUtils';
 
 interface PersonCardProps {
   person: Person;
@@ -40,6 +40,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
   const [isEditingPerson, setIsEditingPerson] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editedName, setEditedName] = useState(person.name);
+  const [editedYear, setEditedYear] = useState<string>(person.birthYear?.toString() || '');
   const initialDate = useMemo(() => parseBirthdayString(person.birthday), [person.birthday]);
   const [editedDay, setEditedDay] = useState(initialDate.day);
   const [editedMonth, setEditedMonth] = useState(initialDate.month);
@@ -50,6 +51,8 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
   const [isPurchasedExpanded, setIsPurchasedExpanded] = useState(false);
 
   const daysUntilBirthday = useMemo(() => getDaysUntilBirthday(person.birthday), [person.birthday]);
+  const nextAge = useMemo(() => getAgeAtNextBirthday(person.birthday, person.birthYear), [person.birthday, person.birthYear]);
+  
   const styles = COLOR_STYLES[person.color || 'slate'];
 
   const pendingGifts = useMemo(() => {
@@ -104,7 +107,13 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
   const handleSavePerson = () => {
     if (editedName.trim()) {
         const formattedBirthday = `${editedDay} de ${editedMonth}`;
-        onUpdate({ ...person, name: editedName.trim(), birthday: formattedBirthday, color: editedColor });
+        onUpdate({ 
+          ...person, 
+          name: editedName.trim(), 
+          birthday: formattedBirthday, 
+          color: editedColor,
+          birthYear: editedYear ? parseInt(editedYear) : undefined
+        });
         setIsEditingPerson(false);
     }
   };
@@ -163,7 +172,6 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
 
   return (
     <div className={`bg-white rounded-lg shadow-md overflow-hidden flex flex-col transition-shadow duration-300 relative border-t-4 ${styles.text} ${styles.border.replace('border', 'border-t')}`}>
-      {/* Toast Notification for Clipboard */}
       {isCopied && (
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 animate-bounce">
           <div className="bg-slate-800 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-xl flex items-center gap-2 border border-slate-700 backdrop-blur-sm bg-opacity-90">
@@ -173,7 +181,6 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
         </div>
       )}
 
-      {/* CUSTOM DELETE CONFIRMATION MODAL */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowDeleteConfirm(false)}>
            <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-xs w-full text-center border-t-4 border-red-500 scale-100 transform transition-all" onClick={e => e.stopPropagation()}>
@@ -183,18 +190,8 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
               <h4 className="text-lg font-bold text-slate-800 mb-2">¿Eliminar a {person.name}?</h4>
               <p className="text-sm text-slate-500 mb-6 leading-relaxed">Esta acción borrará la tarjeta y todas las ideas de regalo asociadas. No se puede deshacer.</p>
               <div className="flex gap-3">
-                  <button 
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    onClick={() => { setShowDeleteConfirm(false); onDelete(person.id); }}
-                    className="flex-1 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-lg shadow-red-100 transition-all"
-                  >
-                    Eliminar
-                  </button>
+                  <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
+                  <button onClick={() => { setShowDeleteConfirm(false); onDelete(person.id); }} className="flex-1 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-lg shadow-red-100 transition-all">Eliminar</button>
               </div>
            </div>
         </div>
@@ -226,12 +223,13 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
            <div className="flex-grow space-y-3 w-full pt-6">
              <input type="text" value={editedName} onChange={(e) => setEditedName(e.target.value)} className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm text-slate-900 placeholder:text-slate-400" placeholder="Nombre" />
              <div className="flex gap-2">
-                 <select value={editedDay} onChange={(e) => setEditedDay(parseInt(e.target.value))} className="w-1/3 px-3 py-2 bg-white border border-slate-300 rounded-xl sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                 <select value={editedDay} onChange={(e) => setEditedDay(parseInt(e.target.value))} className="w-1/4 px-3 py-2 bg-white border border-slate-300 rounded-xl sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
                  </select>
-                 <select value={editedMonth} onChange={(e) => setEditedMonth(e.target.value)} className="w-2/3 px-3 py-2 bg-white border border-slate-300 rounded-xl sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                 <select value={editedMonth} onChange={(e) => setEditedMonth(e.target.value)} className="w-2/4 px-3 py-2 bg-white border border-slate-300 rounded-xl sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
                  </select>
+                 <input type="number" value={editedYear} onChange={(e) => setEditedYear(e.target.value)} placeholder="Año" className="w-1/4 px-3 py-2 bg-white border border-slate-300 rounded-xl sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
              </div>
              <div className="flex gap-2">
                 {(Object.keys(COLORS) as PersonColor[]).map((color) => (
@@ -253,7 +251,10 @@ export const PersonCard: React.FC<PersonCardProps> = ({ person, onUpdate, onDele
                 </button>
             </div>
             <div className={`mt-2 flex justify-between items-center text-sm w-full ${styles.textLight}`}>
-                <div className="flex items-center"><CakeIcon className="h-4 w-4 mr-2" /><span>{person.birthday}</span></div>
+                <div className="flex flex-col">
+                  <div className="flex items-center"><CakeIcon className="h-4 w-4 mr-2" /><span>{person.birthday}</span></div>
+                  {nextAge !== null && <span className="text-[10px] uppercase font-bold tracking-wider opacity-60 mt-0.5 ml-6">Cumplirá {nextAge} años</span>}
+                </div>
                 {daysUntilBirthday !== null && <div className="text-right"><span className="font-semibold opacity-75">{renderDaysLeftText()}</span></div>}
             </div>
           </div>

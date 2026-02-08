@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Person } from './types';
 import Header from './components/Header';
 import AddPersonModal from './components/AddPersonModal';
 import BirthdayCalendarModal from './components/BirthdayCalendarModal';
 import SettingsModal from './components/SettingsModal';
 import { PersonCard } from './components/PersonCard';
-import { StarIcon, AlertTriangleIcon, XIcon } from './components/icons';
+import { StarIcon, AlertTriangleIcon, XIcon, GiftIcon, UserPlusIcon, CakeIcon } from './components/icons';
 import { getDaysUntilBirthday } from './utils/dateUtils';
 import * as googleService from './services/googleSheetsService';
 
@@ -20,92 +20,95 @@ const App: React.FC = () => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
-  const [isGoogleLinked, setIsGoogleLinked] = useState(localStorage.getItem('is_demo_linked') === 'true' || !!localStorage.getItem('google_sheet_id'));
+  const [isGoogleLinked, setIsGoogleLinked] = useState(!!localStorage.getItem('google_sheet_id'));
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error' | 'success'>('idle');
   const [spreadsheetId, setSpreadsheetId] = useState(localStorage.getItem('google_sheet_id'));
-  const [isDemoMode, setIsDemoMode] = useState(localStorage.getItem('is_demo_linked') === 'true');
   const [authError, setAuthError] = useState<string | null>(null);
+
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     googleService.initGoogleAuth(() => {
-        console.log('Google APIs ready.');
+        console.log('Google Services Ready');
     });
   }, []);
 
+  // Efecto principal de guardado: LocalStorage + Nube (Debounced)
   useEffect(() => {
     localStorage.setItem('giftify_people', JSON.stringify(people));
     
-    if (isGoogleLinked && !isSyncing) {
-        if (isDemoMode) {
-            simulateSync();
-        } else if (spreadsheetId) {
+    if (isGoogleLinked && spreadsheetId) {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        
+        // Esperar 2 segundos de inactividad antes de subir a la nube
+        debounceTimerRef.current = setTimeout(() => {
             syncToCloud(people);
-        }
+        }, 2000);
     }
-  }, [people, isGoogleLinked, spreadsheetId, isDemoMode]);
-
-  const simulateSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => setIsSyncing(false), 800);
-  };
+  }, [people, isGoogleLinked, spreadsheetId]);
 
   const syncToCloud = async (data: Person[]) => {
     if (isSyncing) return;
+    
     setIsSyncing(true);
+    setSyncStatus('syncing');
     try {
         await googleService.syncToSheets(spreadsheetId!, data);
-    } catch (e) {
-        console.error('Cloud Sync failed', e);
+        setSyncStatus('success');
+        // Quitar el check de éxito después de 3 segundos
+        setTimeout(() => setSyncStatus('idle'), 3000);
+    } catch (e: any) {
+        console.error('Cloud Sync Error:', e.message);
+        setSyncStatus('error');
+        if (e.message.includes('SESION_CADUCADA')) {
+            setAuthError(e.message.replace('SESION_CADUCADA: ', ''));
+        }
     } finally {
         setIsSyncing(false);
     }
   };
 
   const handleGoogleLink = async () => {
+    if (isSyncing) return;
+    
     setAuthError(null);
     if (!googleService.isGoogleApiReady()) {
-        alert("Los servicios de Google se están cargando...");
+        alert("Los servicios de Google aún no están listos. Espera un segundo...");
         return;
     }
 
     setIsSyncing(true);
+    setSyncStatus('syncing');
     try {
         await googleService.signIn();
-        
-        let sid = spreadsheetId;
-        if (!sid) {
-            sid = await googleService.findOrCreateDatabase();
-            setSpreadsheetId(sid);
-            localStorage.setItem('google_sheet_id', sid);
-        }
+        const sid = await googleService.findOrCreateDatabase();
+        setSpreadsheetId(sid);
+        localStorage.setItem('google_sheet_id', sid);
 
         const cloudData = await googleService.loadFromSheets(sid);
         if (cloudData && cloudData.length > 0) {
-            if (window.confirm('¿Restaurar datos de Google Drive?')) {
+            if (window.confirm('¡Vínculo correcto! Hemos encontrado datos en tu Drive. ¿Quieres usarlos para reemplazar tu lista local?')) {
                 setPeople(cloudData);
+            } else {
+                // Si elige no, sincronizamos lo local arriba de inmediato
+                await googleService.syncToSheets(sid, people);
             }
+        } else {
+            // Si el Excel está vacío, subimos lo que tenemos ahora
+            await googleService.syncToSheets(sid, people);
         }
         
         setIsGoogleLinked(true);
-        setIsDemoMode(false);
-        localStorage.removeItem('is_demo_linked');
+        setSyncStatus('success');
+        setAuthError(null);
     } catch (e: any) {
-        console.log('Sync/Link outcome:', e.message || e);
         const errorMsg = e.message || String(e);
-        
-        // Si el usuario cerró el popup, simplemente paramos el estado de carga
-        if (errorMsg === 'popup_closed_by_user') {
-            setIsSyncing(false);
-            return;
-        }
-
-        if (errorMsg === 'timeout_reached') {
-            setAuthError("El proceso ha tardado demasiado o el popup se bloqueó.");
-        } else if (errorMsg.includes('idpiframe_initialization_failed') || errorMsg.includes('popup_closed_by_user')) {
-            setAuthError("No se pudo completar el login. Revisa la configuración de Orígenes en Google Console.");
-            setIsSettingsOpen(true);
+        if (errorMsg.includes('USER_CANCELLED')) {
+            setSyncStatus('idle');
         } else {
-            alert(`Error al conectar con Google: ${errorMsg}`);
+            setAuthError(errorMsg);
+            setSyncStatus('error');
         }
     } finally {
         setIsSyncing(false);
@@ -146,123 +149,87 @@ const App: React.FC = () => {
         onGoogleLinkClick={handleGoogleLink}
         isGoogleLinked={isGoogleLinked}
         isSyncing={isSyncing}
+        syncStatus={syncStatus}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         {authError && (
-            <div className="mb-6 bg-red-50 border border-red-200 p-4 rounded-2xl flex items-center justify-between animate-fade-in shadow-sm">
-                <div className="flex items-center gap-3 text-red-800 text-sm">
-                    <AlertTriangleIcon className="w-5 h-5 text-red-500" />
-                    <div>
-                        <p className="font-bold">Estado de Vinculación</p>
-                        <p className="opacity-80">{authError}</p>
+            <div className="mb-6 bg-rose-50 border border-rose-200 p-5 rounded-[2.5rem] flex items-center justify-between animate-fade-in shadow-xl shadow-rose-100/50">
+                <div className="flex items-center gap-5 text-rose-900 text-sm">
+                    <div className="bg-rose-500 p-3 rounded-2xl flex-shrink-0 shadow-lg shadow-rose-200">
+                      <AlertTriangleIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="min-w-0 pr-4">
+                        <p className="font-black text-xl leading-tight mb-1">Atención</p>
+                        <p className="opacity-80 text-xs font-bold uppercase tracking-wide">
+                            {authError}
+                        </p>
                     </div>
                 </div>
-                <div className="flex gap-2">
-                    <button onClick={() => setAuthError(null)} className="text-slate-400 hover:text-slate-600 px-2 py-1">
-                        <XIcon className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => setIsSettingsOpen(true)} className="bg-white px-3 py-1.5 rounded-lg border border-red-200 text-xs font-bold text-red-600 hover:bg-red-100 transition-colors">
-                        Diagnóstico
-                    </button>
-                </div>
-            </div>
-        )}
-
-        {isDemoMode && isGoogleLinked && (
-            <div className="mb-6 bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center justify-between animate-fade-in">
-                <div className="flex items-center gap-2 text-amber-800 text-sm font-medium">
-                    <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping"></span>
-                    Estás en Modo Demo (Simulación de Nube activa)
-                </div>
-                <button 
-                  onClick={() => {
-                    setIsGoogleLinked(false);
-                    setIsDemoMode(false);
-                    localStorage.removeItem('is_demo_linked');
-                  }}
-                  className="text-amber-600 text-xs font-bold hover:underline"
-                >
-                    Desactivar
+                <button onClick={() => setAuthError(null)} className="text-slate-400 hover:text-slate-600 p-2 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                    <XIcon className="w-5 h-5" />
                 </button>
             </div>
         )}
 
         {people.length === 0 && !isSyncing ? (
-          <div className="text-center py-20 bg-white border-2 border-dashed border-slate-200 rounded-3xl mt-10">
-            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <StarIcon className="w-8 h-8 text-indigo-400" />
+          <div className="text-center py-24 bg-white border-2 border-dashed border-slate-200 rounded-[3.5rem] mt-8 shadow-sm">
+            <div className="bg-slate-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8">
+                <GiftIcon className="h-12 w-12 text-slate-300" />
             </div>
-            <h2 className="text-xl font-bold text-slate-800">¡Tu lista está vacía!</h2>
-            <p className="text-slate-500 mt-2">Empieza añadiendo a alguien o vincula tu cuenta de Google.</p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
-                <button 
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-indigo-100"
-                >
-                    + Añadir mi primera persona
-                </button>
-                <button 
-                    onClick={handleGoogleLink}
-                    className="bg-white border border-slate-200 text-slate-700 font-bold px-6 py-3 rounded-xl shadow-sm hover:bg-slate-50"
-                >
-                    Vincular con Google Drive
-                </button>
-            </div>
+            <h2 className="text-4xl font-black text-slate-800 mb-4 tracking-tighter">Tu lista está vacía</h2>
+            <p className="text-slate-500 mb-12 max-w-sm mx-auto font-medium text-lg leading-relaxed">Crea tarjetas para tus personas favoritas y no vuelvas a olvidar un regalo.</p>
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="inline-flex items-center gap-3 px-10 py-5 bg-indigo-600 text-white font-black rounded-3xl shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
+            >
+              <UserPlusIcon className="h-7 w-7" />
+              Crear Primera Tarjeta
+            </button>
           </div>
         ) : (
-          <div className="space-y-12">
-            {isSyncing && (
-                <div className="fixed bottom-8 right-8 z-50 animate-bounce">
-                    <div className="bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-full shadow-2xl flex items-center gap-3">
-                        <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
-                        <span>{isDemoMode ? 'Simulando Sync...' : 'Conectando con Google...'}</span>
-                        <button 
-                            onClick={() => setIsSyncing(false)} 
-                            className="ml-2 pl-2 border-l border-slate-600 text-slate-400 hover:text-white transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                    </div>
-                </div>
-            )}
-
+          <div className="space-y-20">
             {favorites.length > 0 && (
-              <section className="animate-fade-in">
-                <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                    <StarIcon className="w-5 h-5 text-amber-400" fill="currentColor" />
-                    Personas Especiales
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {favorites.map(person => (
-                        <PersonCard 
-                            key={person.id} 
-                            person={person} 
-                            onUpdate={handleUpdatePerson} 
-                            onDelete={handleDeletePerson} 
-                        />
-                    ))}
+              <section>
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="bg-amber-100 p-3 rounded-2xl shadow-sm">
+                    <StarIcon className="h-7 w-7 text-amber-500" fill="currentColor" />
+                  </div>
+                  <h2 className="text-3xl font-black text-slate-800 tracking-tighter">Favoritos</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                  {favorites.map(person => (
+                    <PersonCard 
+                      key={person.id} 
+                      person={person} 
+                      onUpdate={handleUpdatePerson} 
+                      onDelete={handleDeletePerson} 
+                    />
+                  ))}
                 </div>
               </section>
             )}
 
-            {others.length > 0 && (
-              <section className="animate-fade-in">
-                <h2 className="text-lg font-bold text-slate-500 mb-6 flex items-center gap-2">
-                    👥 Todos los Cumples
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {others.map(person => (
-                        <PersonCard 
-                            key={person.id} 
-                            person={person} 
-                            onUpdate={handleUpdatePerson} 
-                            onDelete={handleDeletePerson} 
-                        />
-                    ))}
+            <section>
+              <div className="flex items-center gap-4 mb-10">
+                <div className="bg-indigo-50 p-3 rounded-2xl text-indigo-600 shadow-sm">
+                  <CakeIcon className="h-7 w-7" />
                 </div>
-              </section>
-            )}
+                <h2 className="text-3xl font-black text-slate-800 tracking-tighter">
+                  {favorites.length > 0 ? 'Otros cumpleañeros' : 'Próximos Cumpleaños'}
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                {others.map(person => (
+                  <PersonCard 
+                    key={person.id} 
+                    person={person} 
+                    onUpdate={handleUpdatePerson} 
+                    onDelete={handleDeletePerson} 
+                  />
+                ))}
+              </div>
+            </section>
           </div>
         )}
       </main>
@@ -280,17 +247,10 @@ const App: React.FC = () => {
       />
 
       <SettingsModal 
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        clientId={googleService.CLIENT_ID}
-        onSave={(id) => {
-            console.log("Nuevo ID guardado:", id);
-        }}
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        clientId={googleService.CLIENT_ID} 
       />
-
-      <footer className="max-w-7xl mx-auto px-4 text-center mt-20 text-slate-400 text-sm">
-        <p>Tus datos se guardan de forma segura en {isDemoMode ? 'tu Navegador (Demo)' : 'tu propio Google Drive'}.</p>
-      </footer>
     </div>
   );
 };
